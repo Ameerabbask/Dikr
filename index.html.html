@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dhikr">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Dhikr Counter</title>
+<style>
+:root{
+  --bg:#f3f1ec; --card:#fff; --ink:#1d2a2e; --mute:#7a8789; --line:#dcd8cf; --btn:#1f6f6b; --btn-ink:#fff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#12191b;--card:#1b2528;--ink:#e8efef;--mute:#8a9a9c;--line:#2c3a3d;--btn:#3fb5ad;--btn-ink:#0c1415}
+}
+:root[data-theme="dark"]{--bg:#12191b;--card:#1b2528;--ink:#e8efef;--mute:#8a9a9c;--line:#2c3a3d;--btn:#3fb5ad;--btn-ink:#0c1415}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:520px;margin:0 auto;padding:20px 16px 48px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--btn);outline-offset:2px}
+#chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+.chip{flex:none;padding:10px 16px;border-radius:20px;border:1px solid var(--line);background:var(--card)}
+.chip.on{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+#addf{display:flex;gap:8px;margin:8px 0 0}
+#addf input{flex:1;min-width:0;font:inherit;font-size:16px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+#addf button{padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+#name{text-align:center;color:var(--mute);margin:28px 0 0;font-size:17px}
+#count{text-align:center;font-size:clamp(88px,28vw,160px);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;letter-spacing:-0.03em;user-select:none;-webkit-user-select:none}
+#addwrap{display:flex;justify-content:center;margin:16px 0}
+#add{width:min(58vw,210px);aspect-ratio:1;border-radius:50%;border:0;background:var(--btn);color:var(--btn-ink);font-size:92px;font-weight:300;line-height:1;touch-action:manipulation;transition:transform .08s}
+#add:active{transform:scale(.94)}
+.row{display:flex;gap:8px;justify-content:center;margin-top:8px}
+.row button{padding:12px 18px;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+#save{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+h2{font-size:20px;margin:36px 0 8px}
+#sum{color:var(--mute);font-size:14px;margin:0 0 10px}
+ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:14px}
+li{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+li:last-child{border-bottom:0}
+li .main{flex:1;min-width:0}
+li .t{font-size:16px;word-break:break-word}
+li .d{font-size:13px;color:var(--mute);margin-top:2px}
+li .n{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.x{background:none;border:0;color:var(--mute);font-size:22px;padding:4px 8px}
+.empty{color:var(--mute);justify-content:center}
+#clr{display:block;margin:12px auto 0;background:none;border:0;color:var(--btn);font-size:15px}
+#dlg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:24px;z-index:20}
+#dlg.show{display:flex}
+#dlg .box{background:var(--card);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center}
+#dlg p{margin:0 0 16px;font-size:17px}
+#dlg .row{margin:0}
+@media (prefers-reduced-motion:reduce){#add{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <div id="chips" role="tablist"></div>
+  <form id="addf">
+    <input id="newd" type="text" placeholder="Add a new dhikr" autocomplete="off" aria-label="New dhikr name">
+    <button type="submit">Add</button>
+  </form>
+  <p id="name"></p>
+  <div id="count" aria-live="polite">0</div>
+  <div id="addwrap"><button id="add" aria-label="Add one">+</button></div>
+  <div class="row">
+    <button id="reset" type="button">Reset</button>
+    <button id="save" type="button">Save to history</button>
+  </div>
+  <div class="row"><button id="rm" type="button">Remove this dhikr</button></div>
+
+  <h2>History</h2>
+  <p id="sum"></p>
+  <ul id="hist"></ul>
+  <button id="clr" type="button">Clear history</button>
+</main>
+<div id="dlg"><div class="box"><p id="dmsg"></p><div class="row"><button id="dno" type="button">Cancel</button><button id="dyes" type="button" style="background:var(--btn);color:var(--btn-ink);border-color:var(--btn)">Yes</button></div></div></div>
+<script>
+var KEY="dhikr_v1",S;
+function ask(msg,fn){
+  var d=document.getElementById("dlg");document.getElementById("dmsg").textContent=msg;d.className="show";
+  document.getElementById("dno").onclick=function(){d.className=""};
+  document.getElementById("dyes").onclick=function(){d.className="";fn()};
+}
+function load(){
+  try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
+  if(!S||!S.dhikrs||!S.dhikrs.length){
+    S={cur:0,hist:[],dhikrs:["SubhanAllah","Alhamdulillah","Allahu Akbar","Astaghfirullah"].map(function(n,i){return{id:i+1,name:n,count:0}})};
+  }
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function cur(){return S.dhikrs.filter(function(d){return d.id===S.cur})[0]||(S.cur=S.dhikrs[0].id,S.dhikrs[0])}
+function fmt(t){return new Date(t).toLocaleString(undefined,{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit"})}
+function render(){
+  var c=cur();
+  var chips=document.getElementById("chips");chips.innerHTML="";
+  S.dhikrs.forEach(function(d){
+    var b=document.createElement("button");b.className="chip"+(d.id===c.id?" on":"");
+    b.textContent=d.name+(d.count?" \u00b7 "+d.count:"");b.setAttribute("role","tab");
+    b.onclick=function(){S.cur=d.id;save();render()};chips.appendChild(b);
+  });
+  document.getElementById("name").textContent=c.name;
+  document.getElementById("count").textContent=c.count;
+  document.getElementById("rm").style.display=S.dhikrs.length>1?"":"none";
+  var h=document.getElementById("hist");h.innerHTML="";
+  if(!S.hist.length)h.innerHTML='<li class="empty">No saved sessions yet</li>';
+  S.hist.forEach(function(e,i){
+    var li=document.createElement("li");
+    li.innerHTML='<div class="main"><div class="t"></div><div class="d"></div></div><div class="n"></div>';
+    li.querySelector(".t").textContent=e.name;
+    li.querySelector(".d").textContent=fmt(e.t);
+    li.querySelector(".n").textContent=e.count;
+    var x=document.createElement("button");x.className="x";x.textContent="\u00d7";x.setAttribute("aria-label","Delete entry");
+    x.onclick=function(){S.hist.splice(i,1);save();render()};li.appendChild(x);h.appendChild(li);
+  });
+  var today=new Date().toDateString(),tt=0,all=0;
+  S.hist.forEach(function(e){all+=e.count;if(new Date(e.t).toDateString()===today)tt+=e.count});
+  document.getElementById("sum").textContent=S.hist.length?"Today: "+tt+" \u00b7 All time: "+all+" \u00b7 "+S.hist.length+" sessions":"";
+  document.getElementById("clr").style.display=S.hist.length?"":"none";
+}
+document.getElementById("add").onclick=function(){cur().count++;save();render();if(navigator.vibrate)navigator.vibrate(10)};
+document.getElementById("reset").onclick=function(){if(cur().count)ask("Reset this count to 0?",function(){cur().count=0;save();render()})};
+document.getElementById("save").onclick=function(){
+  var c=cur();if(!c.count)return;
+  S.hist.unshift({name:c.name,count:c.count,t:Date.now()});c.count=0;save();render();
+};
+document.getElementById("rm").onclick=function(){
+  var c=cur();
+  ask("Remove "+c.name+"? Saved history stays.",function(){S.dhikrs=S.dhikrs.filter(function(d){return d.id!==c.id});S.cur=S.dhikrs[0].id;save();render()});
+};
+document.getElementById("clr").onclick=function(){ask("Clear all history?",function(){S.hist=[];save();render()})};
+document.getElementById("addf").onsubmit=function(e){
+  e.preventDefault();var i=document.getElementById("newd"),v=i.value.trim();if(!v)return;
+  var id=Date.now();S.dhikrs.push({id:id,name:v,count:0});S.cur=id;i.value="";save();render();
+};
+load();render();
+</script>
+</body>
+</html>
